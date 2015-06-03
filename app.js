@@ -40,97 +40,93 @@ mumble.connect( 'mumble://benhen.zzzz.io', options, function ( error, connection
     // };
 
     connection.on( 'initialized', function() {
-
-        console.log( 'Connection initialized' );
-        // Connection is authenticated and usable.
-
-        var users = connection.users();
-        console.log(JSON.stringify(users[0].name));
-        for (var i = 0; i < users.length; i++) {
-            console.log('Hi ' + users[i].name + '!');
-        }
-
-        setTimeout(function() {
-            var channel = connection.channelByName("Elliptical Madness");
-            if (channel) {
-                console.log("Autoconnect channel found.");
-                channel.join();
-                setTimeout(function() {
-                    sendMessage(connection, "Autoconnected. Hi!");
-                }, 1000);
-            } else {
-                console.log("Autoconnected channel not found");
-            }
-        }, 500);
-
+        //gotta add that parameter
+        onInit(connection);
     });
     connection.on( 'message', function(message, actor) {
-        if (actor.name === 'e') {
-            //don't respond to yourself
-            return;
-        }
+        //gotta add that parameter again
+        onMessage(connection, message, actor);
 
-        // console.log( 'Recieved Message' );
-        // console.log(message);
-        if (message.indexOf("!") === -1)
-            return;
-
-        var messageText = message.replace(/<\/?(p|i|b|br)\b[^<>]*>/g, '');
-        messageStuff = messageText.split(' ');
-        for (var i = 0; i < messageStuff.length; i++) {
-            //convert to lower case to make easier to parse
-            messageStuff[i] = messageStuff[i].toLowerCase();
-        };
-
-
-        if (!messageStuff || messageStuff.length === 0 
-            || messageStuff[0].length === 1 || messageStuff[0].substring(0, 1) !== '!') return;
-        // if (messageStuff.length < 1 && messageStuff[0].length > 1) return;
-        // if (messageStuff[0].substring(0, 1) !== '!') return;
-
-        var keyWord = messageStuff[0].substring(1);
-
-        var foundCommand = false;
-        for (var i = 0; i < commands.length; i++) {
-            var command = commands[i];
-            //TODO: array identifiers
-            if (command.identifier === keyWord) {
-                console.log(command.identifier);
-                command.action(connection, messageText, messageStuff);
-                foundCommand = true;
-                break;
-            }
-        }
-        if (!foundCommand) {
-            sendMessage(connection, 'Command not found');
-        }
-
-        
-        // Connection is authenticated and usable.
     });
-    
-    // var channel = connection.channelByName('Elliptical Madness');
-    // connection.connection.joinPath(channel);
-    // console.log(connection.connection.channels);
-    // console.log(connection.connection.users);
     // connection.on( 'voice', onVoice );
-
-
-    // connection.connection.sendMessage('UserList', 'HAHAHAH IT WORKED!');
 });
 
-var onInit = function() {
+var onInit = function(connection) {
     console.log( 'Connection initialized' );
     // Connection is authenticated and usable.
 
+    //Print out a list of users (you can comment this out)
+    var users = connection.users();
+    console.log(JSON.stringify(users[0].name));
+    for (var i = 0; i < users.length; i++) {
+        console.log('Hi ' + users[i].name + '!');
+    }
+
+    //Connect to Elliptical Madness if it exists
+    //I added timeouts to account for connection delays
+    //There is probably a better way, but whatever
+    setTimeout(function() {
+        //look for channel
+        var channel = connection.channelByName("Elliptical Madness");
+        if (channel) {
+            console.log("Autoconnect channel found.");
+            channel.join();
+            setTimeout(function() {
+                sendMessage(connection, "Autoconnected. Hi!");
+            }, 1000);
+        } else {
+            console.log("Autoconnected channel not found");
+        }
+    }, 500);
 };
 
-var onMessage = function(message, actor) {
-    console.log( 'Recieved Message' );
-    console.log(JSON.stringify(message));
-    console.log(actor);
-    connection.user.channel.sendMessage('OHHHHHH EYYYYYAAYAAAAAHAHHAHAHAHH')
-    // Connection is authenticated and usable.
+var onMessage = function(connection, message, actor) {
+    if (actor.name === 'e') {
+        //don't respond to yourself
+        return;
+    }
+
+    //Ignore message if it doesn't contain "!"
+    if (message.indexOf("!") === -1)
+        return;
+
+    //Take away all html elements - from this:
+    //http://stackoverflow.com/questions/17164335/how-to-remove-only-html-tags-in-a-string-using-javascript
+    var messageText = message.replace(/<\/?(p|i|b|br)\b[^<>]*>/g, '');
+    messageStuff = messageText.split(' ');
+    for (var i = 0; i < messageStuff.length; i++) {
+        //convert to lower case to make easier to parse
+        messageStuff[i] = messageStuff[i].toLowerCase();
+    };
+
+    //ignore message if it doesn't meet certain criteria
+    if (!messageStuff || messageStuff.length === 0 
+        || messageStuff[0].length === 1 || messageStuff[0].substring(0, 1) !== '!') return;
+
+    //first word is the keyword (after the '!')
+    var keyWord = messageStuff[0].substring(1);
+
+    if (messageStuff.length > 0) {
+        //take away command from beginning to make easier to parse
+        messageText = messageText.substring(messageStuff[0].length+1);
+    }
+
+    var foundCommand = false;
+    for (var i = 0; i < commands.length; i++) {
+        var command = commands[i];
+        //TODO: array identifiers
+        //This looks for a command with a matching keyword
+        if (command.identifier === keyWord) {
+            console.log(command.identifier);
+            //execture if found
+            command.action(connection, messageText, messageStuff);
+            foundCommand = true;
+            break;
+        }
+    }
+    if (!foundCommand) {
+        sendMessage(connection, 'Command not found');
+    }
 };
 
 var onVoice = function( event ) {
@@ -190,7 +186,7 @@ var commands = [{
     identifier: 'curse',
     minLength: 1, //how much additional information you need 
     action: function(connection, keyString, keyArray) {
-        sendMessage(connection, 'Screw you, ' + keyString.substring(keyArray[0].length+1) + '!');
+        sendMessage(connection, 'Screw you, ' + keyString + '!');
     }
 }, {
     identifier: 'flipthetable',
@@ -222,7 +218,7 @@ var commands = [{
     minLength: 1, //how much additional information you need 
     action: function(connection, keyString, keyArray) {
         //get rest of command without '!move '
-        var newChannel = keyString.substring(keyArray[0].length+1);
+        var newChannel = keyString;
         if (newChannel === 'root') {
             connection.rootChannel.join();
             console.log("Moved to Channel: root");
